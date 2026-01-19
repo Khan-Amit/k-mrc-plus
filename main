@@ -1,0 +1,719 @@
+🚀 MRC Enigma System – Complete GitHub Package
+
+
+
+📁 Project Structure
+
+```
+MRC-Enigma-System/
+├── src/
+│   ├── __init__.py
+│   ├── enigma.py
+│   ├── rotors.py
+│   ├── reflector.py
+│   ├── plugboard.py
+│   └── key_manager.py
+├── tests/
+│   ├── __init__.py
+│   ├── test_enigma.py
+│   ├── test_rotors.py
+│   └── test_integration.py
+├── examples/
+│   ├── basic_usage.py
+│   └── file_encryption.py
+├── docs/
+│   └── API_REFERENCE.md
+├── requirements.txt
+├── setup.py
+├── .gitignore
+├── LICENSE
+├── README.md
+└── config.yaml
+```
+
+📄 File Contents
+
+1.	README.md
+
+```markdown
+# 🧠 MRC Enigma System
+
+A modern Python implementation of the Enigma machine encryption system with enhanced security features.
+
+## ✨ Features
+- Historical Enigma Machine emulation
+- Customizable rotor configurations
+- Plugboard support for character substitution
+- File encryption/decryption
+- Multiple cipher modes
+- Cryptographic validation
+
+## 🚀 Quick Start
+
+```bash
+# Clone repository
+Git clone https://github.com/yourusername/MRC-Enigma-System.git
+Cd MRC-Enigma-System
+
+# Install dependencies
+Pip install -r requirements.txt
+
+# Run example
+Python examples/basic_usage.py
+```
+
+📖 Documentation
+
+See docs/ for detailed API reference and usage examples.
+
+🔒 Security Note
+
+This is an educational implementation. For production-grade encryption, use established libraries like cryptography.io.
+
+🤝 Contributing
+
+Pull requests are welcome! Please read CONTRIBUTING.md for details.
+
+📄 License
+
+MIT License – see LICENSE file
+
+```
+
+### **2. Src/enigma.py**
+```python
+“””
+Main Enigma machine implementation
+MRC Enigma System v1.0
+“””
+
+Import string
+From typing import Dict, List, Optional
+From .rotors import Rotor
+From .reflector import Reflector
+From .plugboard import Plugboard
+
+Class MRCEnigma:
+    “””Modern Enigma Machine Implementation”””
+    
+    Def __init__(self, config: Dict = None):
+        “””
+        Initialize Enigma machine
+        
+        Args:
+            Config: Configuration dictionary with rotor settings, 
+                   Plugboard connections, etc.
+        “””
+        Self.config = config or self.default_config()
+        Self.rotors = []
+        Self.reflector = None
+        Self.plugboard = None
+        Self.setup_machine()
+        
+        # Character set (A-Z)
+        Self.alphabet = string.ascii_uppercase
+        Self.char_to_idx = {ch: I for I, ch in enumerate(self.alphabet)}
+        Self.idx_to_char = {i: ch for I, ch in enumerate(self.alphabet)}
+    
+    Def default_config(self) -> Dict:
+        “””Return default Enigma configuration”””
+        Return {
+            ‘rotors’: [‘I’, ‘II’, ‘III’],
+            ‘reflector’: ‘B’,
+            ‘ring_settings’: [0, 0, 0],
+            ‘initial_positions’: ‘AAA’,
+            ‘plugboard_connections’: [],
+            ‘double_step’: True
+        }
+    
+    Def setup_machine(self):
+        “””Configure machine components”””
+        # Setup rotors
+        For I, rotor_type in enumerate(self.config[‘rotors’]):
+            Rotor = Rotor(
+                Rotor_type=rotor_type,
+                Ring_setting=self.config[‘ring_settings’][i],
+                Initial_position=self.config[‘initial_positions’][i]
+            )
+            Self.rotors.append(rotor)
+        
+        # Setup reflector
+        Self.reflector = Reflector(self.config[‘reflector’])
+        
+        # Setup plugboard
+        Self.plugboard = Plugboard(self.config[‘plugboard_connections’])
+    
+    Def encrypt_char(self, char: str) -> str:
+        “””
+        Encrypt a single character
+        
+        Args:
+            Char: Single character to encrypt
+            
+        Returns:
+            Encrypted character
+        “””
+        If len(char) != 1 or char.upper() not in self.alphabet:
+            Return char
+        
+        # Convert to uppercase
+        Char = char.upper()
+        
+        # Step 1: Rotate rotors
+        Self._rotate_rotors()
+        
+        # Step 2: Pass through plugboard (forward)
+        Char = self.plugboard.map_forward(char)
+        
+        # Step 3: Pass through rotors (right to left)
+        Char_idx = self.char_to_idx[char]
+        
+        # Forward through rotors (right to left)
+        For rotor in reversed(self.rotors):
+            Char_idx = rotor.forward(char_idx)
+        
+        # Step 4: Pass through reflector
+        Char_idx = self.reflector.reflect(char_idx)
+        
+        # Step 5: Pass through rotors (left to right, inverse)
+        For rotor in self.rotors:
+            Char_idx = rotor.backward(char_idx)
+        
+        # Convert back to character
+        Char = self.idx_to_char[char_idx]
+        
+        # Step 6: Pass through plugboard (backward)
+        Char = self.plugboard.map_backward(char)
+        
+        Return char
+    
+    Def decrypt_char(self, char: str) -> str:
+        “””
+        Decrypt a single character (same as encryption process)
+        “””
+        Return self.encrypt_char(char)
+    
+    Def encrypt_text(self, text: str) -> str:
+        “””
+        Encrypt a string of text
+        
+        Args:
+            Text: Plaintext to encrypt
+            
+        Returns:
+            Ciphertext
+        “””
+        Result = []
+        For char in text:
+            Result.append(self.encrypt_char(char))
+        Return ‘’.join(result)
+    
+    Def decrypt_text(self, text: str) -> str:
+        “””
+        Decrypt a string of text
+        
+        Args:
+            Text: Ciphertext to decrypt
+            
+        Returns:
+            Plaintext
+        “””
+        # Reset machine to initial state
+        Self.reset()
+        Return self.encrypt_text(text)
+    
+    Def _rotate_rotors(self):
+        “””Rotate rotors according to Enigma stepping rules”””
+        # Rightmost rotor always rotates
+        Rotate_next = True
+        
+        For I in range(len(self.rotors) – 1, -1, -1):
+            If rotate_next:
+                # Check for double step if enabled
+                If (self.config[‘double_step’] and I == 1 and 
+                    Self.rotors[2].is_at_notch()):
+                    Rotate_next = True
+                Else:
+                    Rotate_next = self.rotors[i].is_at_notch()
+                
+                Self.rotors[i].rotate()
+            Else:
+                Break
+    
+    Def reset(self):
+        “””Reset machine to initial state”””
+        For rotor in self.rotors:
+            Rotor.reset()
+    
+    Def get_current_state(self) -> Dict:
+        “””Return current machine state”””
+        Return {
+            ‘rotor_positions’: [rotor.position for rotor in self.rotors],
+            ‘ring_settings’: [rotor.ring_setting for rotor in self.rotors],
+            ‘plugboard’: self.plugboard.connections
+        }
+
+# Convenience functions
+Def create_enigma_from_config(config_file: str = ‘config.yaml’):
+    “””Factory function to create Enigma from config file”””
+    Import yaml
+    With open(config_file, ‘r’) as f:
+        Config = yaml.safe_load(f)
+    Return MRCEnigma(config)
+
+Def generate_random_config():
+    “””Generate random Enigma configuration”””
+    Import random
+    Import string
+    
+    Config = {
+        ‘rotors’: random.sample([‘I’, ‘II’, ‘III’, ‘IV’, ‘V’], 3),
+        ‘reflector’: random.choice([‘A’, ‘B’, ‘C’]),
+        ‘ring_settings’: [random.randint(0, 25) for _ in range(3)],
+        ‘initial_positions’: ‘’.join(
+            Random.choice(string.ascii_uppercase) for _ in range(3)
+        ),
+        ‘plugboard_connections’: []
+    }
+    
+    # Generate random plugboard connections
+    Alphabet = list(string.ascii_uppercase)
+    Random.shuffle(alphabet)
+    For I in range(0, 10, 2):  # Up to 10 connections
+        Config[‘plugboard_connections’].append(
+            (alphabet[i], alphabet[i+1])
+        )
+    
+    Return config
+```
+
+2.	Src/rotors.py
+
+```python
+“””
+Rotor implementation for MRC Enigma System
+“””
+
+Class Rotor:
+    “””Enigma Machine Rotor”””
+    
+    # Historical Enigma rotor wirings
+    ROTOR_WIRINGS = {
+        ‘I’:   ‘EKMFLGDQVZNTOWYHXUSPAIBRCJ’,
+        ‘II’:  ‘AJDKSIRUXBLHWTMCQGZNPYFVOE’,
+        ‘III’: ‘BDFHJLCPRTXVZNYEIWGAKMUSQO’,
+        ‘IV’:  ‘ESOVPZJAYQUIRHXLNFTGKDCMWB’,
+        ‘V’:   ‘VZBRGITYUPSDNHLXAWMJQOFECK’
+    }
+    
+    # Notch positions (where rotor causes next rotor to step)
+    ROTOR_NOTCHES = {
+        ‘I’: ‘Q’,
+        ‘II’: ‘E’,
+        ‘III’: ‘V’,
+        ‘IV’: ‘J’,
+        ‘V’: ‘Z’
+    }
+    
+    Def __init__(self, rotor_type: str = ‘I’, 
+                 Ring_setting: int = 0, 
+                 Initial_position: str = ‘A’):
+        “””
+        Initialize rotor
+        
+        Args:
+            Rotor_type: Rotor type (I, II, III, IV, V)
+            Ring_setting: Ring setting offset (0-25)
+            Initial_position: Starting position (A-Z)
+        “””
+        Self.rotor_type = rotor_type
+        Self.wiring = self.ROTOR_WIRINGS[rotor_type]
+        Self.notch = self.ROTOR_NOTCHES[rotor_type]
+        
+        # Convert initial position to index (A=0, B=1, etc.)
+        Self.initial_position = ord(initial_position.upper()) – 65
+        Self.position = self.initial_position
+        
+        Self.ring_setting = ring_setting
+        
+        # Create forward and backward mapping
+        Self._create_mappings()
+    
+    Def _create_mappings(self):
+        “””Create forward and backward character mappings”””
+        Alphabet = ‘ABCDEFGHIJKLMNOPQRSTUVWXYZ’
+        
+        # Forward mapping (right to left)
+        Self.forward_map = {}
+        For I, char in enumerate(alphabet):
+            # Apply ring setting and position offset
+            Offset_idx = (I + self.position – self.ring_setting) % 26
+            Mapped_char = self.wiring[offset_idx]
+            # Apply reverse offset
+            Final_idx = (ord(mapped_char) – 65 – self.position + self.ring_setting) % 26
+            Self.forward_map[i] = final_idx
+        
+        # Backward mapping (left to right, inverse)
+        Self.backward_map = {}
+        For I, char in enumerate(self.wiring):
+            Original_idx = (ord(char) – 65 + self.position – self.ring_setting) % 26
+            Final_idx = (I – self.position + self.ring_setting) % 26
+            Self.backward_map[original_idx] = final_idx
+    
+    Def forward(self, char_idx: int) -> int:
+        “””
+        Map character through rotor (right to left)
+        
+        Args:
+            Char_idx: Input character index (0-25)
+            
+        Returns:
+            Mapped character index
+        “””
+        Return self.forward_map[char_idx]
+    
+    Def backward(self, char_idx: int) -> int:
+        “””
+        Map character through rotor in reverse (left to right)
+        
+        Args:
+            Char_idx: Input character index (0-25)
+            
+        Returns:
+            Mapped character index
+        “””
+        Return self.backward_map[char_idx]
+    
+    Def rotate(self):
+        “””Rotate rotor by one position”””
+        Self.position = (self.position + 1) % 26
+        Self._create_mappings()
+    
+    Def set_position(self, position: str):
+        “””Set rotor to specific position”””
+        Self.position = ord(position.upper()) – 65
+        Self._create_mappings()
+    
+    Def is_at_notch(self) -> bool:
+        “””Check if rotor is at notch position”””
+        Return self.position == (ord(self.notch) – 65)
+    
+    Def reset(self):
+        “””Reset rotor to initial position”””
+        Self.position = self.initial_position
+        Self._create_mappings()
+    
+    Def __str__(self):
+        Return (f”Rotor {self.rotor_type} “
+                F”(Pos: {chr(self.position + 65)}, “
+                F”Ring: {self.ring_setting})”)
+```
+
+3.	Src/reflector.py
+
+```python
+“””
+Reflector implementation for MRC Enigma System
+“””
+
+Class Reflector:
+    “””Enigma Machine Reflector”””
+    
+    # Historical reflector wirings
+    REFLECTOR_WIRINGS = {
+        ‘A’: ‘EJMZALYXVBWFCRQUONTSPIKHGD’,
+        ‘B’: ‘YRUHQSLDPXNGOKMIEBFZCWVJAT’,
+        ‘C’: ‘FVPJIAOYEDRZXWGCTKUQSBNMHL’
+    }
+    
+    Def __init__(self, reflector_type: str = ‘B’):
+        “””
+        Initialize reflector
+        
+        Args:
+            Reflector_type: Reflector type (A, B, C)
+        “””
+        Self.reflector_type = reflector_type
+        Self.wiring = self.REFLECTOR_WIRINGS[reflector_type]
+        Self._create_mapping()
+    
+    Def _create_mapping(self):
+        “””Create reflector mapping”””
+        Self.mapping = {}
+        For I, char in enumerate(self.wiring):
+            Self.mapping[i] = ord(char) – 65
+    
+    Def reflect(self, char_idx: int) -> int:
+        “””
+        Reflect character through reflector
+        
+        Args:
+            Char_idx: Input character index (0-25)
+            
+        Returns:
+            Reflected character index
+        “””
+        Return self.mapping[char_idx]
+    
+    Def __str__(self):
+        Return f”Reflector {self.reflector_type}”
+```
+
+4.	Src/plugboard.py
+
+```python
+“””
+Plugboard implementation for MRC Enigma System
+“””
+
+Class Plugboard:
+    “””Enigma Machine Plugboard”””
+    
+    Def __init__(self, connections: list = None):
+        “””
+        Initialize plugboard
+        
+        Args:
+            Connections: List of character pairs to swap [(A,B), (C,D), …]
+        “””
+        Self.connections = connections or []
+        Self._create_mappings()
+    
+    Def _create_mappings(self):
+        “””Create plugboard forward and backward mappings”””
+        Self.forward_map = {}
+        Self.backward_map = {}
+        
+        # Start with identity mapping
+        For I in range(26):
+            Self.forward_map[i] = i
+            Self.backward_map[i] = i
+        
+        # Apply plugboard connections
+        For a, b in self.connections:
+            Idx_a = ord(a.upper()) – 65
+            Idx_b = ord(b.upper()) – 65
+            Self.forward_map[idx_a] = idx_b
+            Self.forward_map[idx_b] = idx_a
+            Self.backward_map[idx_a] = idx_b
+            Self.backward_map[idx_b] = idx_a
+    
+    Def map_forward(self, char: str) -> str:
+        “””
+        Map character through plugboard (forward direction)
+        
+        Args:
+            Char: Single character
+            
+        Returns:
+            Mapped character
+        “””
+        Idx = ord(char.upper()) – 65
+        Mapped_idx = self.forward_map.get(idx, idx)
+        Return chr(mapped_idx + 65)
+    
+    Def map_backward(self, char: str) -> str:
+        “””
+        Map character through plugboard (backward direction)
+        
+        Args:
+            Char: Single character
+            
+        Returns:
+            Mapped character
+        “””
+        Idx = ord(char.upper()) – 65
+        Mapped_idx = self.backward_map.get(idx, idx)
+        Return chr(mapped_idx + 65)
+    
+    Def add_connection(self, pair: tuple):
+        “””Add a new plugboard connection”””
+        If len(self.connections) < 10:  # Historical limit
+            Self.connections.append(pair)
+            Self._create_mappings()
+    
+    Def clear_connections(self):
+        “””Clear all plugboard connections”””
+        Self.connections = []
+        Self._create_mappings()
+    
+    Def __str__(self):
+        Return f”Plugboard ({len(self.connections)} connections)”
+```
+
+5.	Src/key_manager.py
+
+```python
+“””
+Key management for MRC Enigma System
+“””
+
+Import json
+Import yaml
+From datetime import datetime
+From typing import Dict, List, Optional
+
+Class KeyManager:
+    “””Manage encryption keys and configurations”””
+    
+    Def __init__(self):
+        Self.keys = {}
+        Self.current_key_id = None
+    
+    Def generate_key(self, 
+                     Name: str = None,
+                     Description: str = “”) -> str:
+        “””
+        Generate new encryption key
+        
+        Args:
+            Name: Key name
+            Description: Key description
+            
+        Returns:
+            Key ID
+        “””
+        From .enigma import generate_random_config
+        
+        Key_id = f”key_{datetime.now().strftime(‘%Y%m%d_%H%M%S’)}”
+        
+        Config = generate_random_config()
+        
+        Self.keys[key_id] = {
+            ‘id’: key_id,
+            ‘name’: name or f”Key {key_id}”,
+            ‘description’: description,
+            ‘config’: config,
+            ‘created’: datetime.now().isoformat(),
+            ‘last_used’: None
+        }
+        
+        Self.current_key_id = key_id
+        Return key_id
+    
+    Def save_keys(self, filename: str = ‘keys.json’):
+        “””Save keys to file”””
+        With open(filename, ‘w’) as f:
+            Json.dump(self.keys, f, indent=2)
+    
+    Def load_keys(self, filename: str = ‘keys.json’):
+        “””Load keys from file”””
+        Try:
+            With open(filename, ‘r’) as f:
+                Self.keys = json.load(f)
+        Except FileNotFoundError:
+            Self.keys = {}
+    
+    Def export_config(self, key_id: str, format: str = ‘yaml’) -> str:
+        “””
+        Export key configuration
+        
+        Args:
+            Key_id: Key identifier
+            Format: Export format (yaml, json)
+            
+        Returns:
+            Configuration as string
+        “””
+        If key_id not in self.keys:
+            Raise ValueError(f”Key {key_id} not found”)
+        
+        Config = self.keys[key_id][‘config’]
+        
+        If format.lower() == ‘yaml’:
+            Return yaml.dump(config, default_flow_style=False)
+        Elif format.lower() == ‘json’:
+            Return json.dumps(config, indent=2)
+        Else:
+            Raise ValueError(f”Unsupported format: {format}”)
+    
+    Def list_keys(self) -> List[Dict]:
+        “””List all available keys”””
+        Return list(self.keys.values())
+    
+    Def delete_key(self, key_id: str):
+        “””Delete key”””
+        If key_id in self.keys:
+            Del self.keys[key_id]
+            If self.current_key_id == key_id:
+                Self.current_key_id = None
+    
+    Def get_key_config(self, key_id: str) -> Dict:
+        “””Get configuration for specific key”””
+        If key_id not in self.keys:
+            Raise ValueError(f”Key {key_id} not found”)
+        
+        Self.keys[key_id][‘last_used’] = datetime.now().isoformat()
+        Return self.keys[key_id][‘config’]
+
+# Singleton instance
+Key_manager = KeyManager()
+```
+
+6.	Examples/basic_usage.py
+
+```python
+#!/usr/bin/env python3
+“””
+Basic usage example for MRC Enigma System
+“””
+
+Import sys
+Import os
+Sys.path.insert(0, os.path.join(os.path.dirname(__file__), ‘..’))
+
+From src.enigma import MRCEnigma, create_enigma_from_config
+From src.key_manager import key_manager
+
+Def basic_encryption():
+    “””Demonstrate basic encryption/decryption”””
+    Print(“=” * 50)
+    Print(“MRC Enigma System – Basic Demo”)
+    Print(“=” * 50)
+    
+    # Generate a random configuration
+    Print(“\n1. Generating random configuration…”)
+    Key_id = key_manager.generate_key(
+        Name=”Demo Key”,
+        Description=”Example key for demonstration”
+    )
+    Config = key_manager.get_key_config(key_id)
+    
+    # Create Enigma machine
+    Print(“\n2. Creating Enigma machine…”)
+    Enigma = MRCEnigma(config)
+    
+    # Display configuration
+    Print(“\n3. Machine Configuration:”)
+    Print(f”   Rotors: {config[‘rotors’]}”)
+    Print(f”   Reflector: {config[‘reflector’]}”)
+    Print(f”   Initial positions: {config[‘initial_positions’]}”)
+    Print(f”   Plugboard connections: {config[‘plugboard_connections’]}”)
+    
+    # Test encryption
+    Print(“\n4. Testing encryption…”)
+    Plaintext = “HELLOWORLD”
+    Print(f”   Plaintext: {plaintext}”)
+    
+    Ciphertext = enigma.encrypt_text(plaintext)
+    Print(f”   Ciphertext: {ciphertext}”)
+    
+    # Reset and decrypt
+    Enigma.reset()
+    Decrypted = enigma.decrypt_text(ciphertext)
+    Print(f”   Decrypted: {decrypted}”)
+    
+    # Verify
+    If plaintext == decrypted:
+        Print(“\n✅ Encryption/Decryption successful!”)
+    Else:
+        Print(“\n❌ Error in encryption/decryption!”)
+    
+    # Save key
+   
+
+
+
+
+
+
